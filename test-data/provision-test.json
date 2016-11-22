@@ -1,0 +1,13 @@
+{
+  "organization_guid": "oguid",
+  "plan_id": "micro-plan-id",
+  "service_id": "service-guid",
+  "space_guid": "space-guid",
+  "parameters": {
+    "ami_id": "ami-ecb68a84",
+    "security_group_id": "sg-a1f577dc",
+    "subnet_id": "subnet-d718ae8c",
+    "assign_public_ip": true
+  },
+  "accepts_incomplete": true
+}
