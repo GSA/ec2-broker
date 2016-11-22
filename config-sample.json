@@ -2,7 +2,7 @@
   "dashboard_url": "https://dashboard_url",
   "region": "us-east-1",
   "service_id": "service-guid",
-  "service_name": "cloud.gov EC2 service",
+  "service_name": "ec2-service",
   "service_description": "Allows users to launch a restricted set of AMIs into a restricted set of security groups and subnets",
   "tag_prefix": "cg:ec2broker:",
   "broker_username": "buser",
@@ -11,7 +11,7 @@
   "plans": [
     {
       "id": "micro-plan-id",
-      "name": "Micro EC2 Service",
+      "name": "micro-ec2-plan",
       "description": "Launches a t2.micro instance with the given parameters",
       "instance_type": "t2.micro",
       "allowed_amis": ["ami-1"],
@@ -21,7 +21,7 @@
     },
     {
       "id": "medium-plan-id",
-      "name": "Medium EC2 Service",
+      "name": "medium-ec2-plan",
       "description": "Launches a t2.medium instance with the given parameters",
       "instance_type": "t2.medium",
       "allowed_amis": ["ami-1"],
