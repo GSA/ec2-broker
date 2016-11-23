@@ -65,6 +65,13 @@ func GetConfiguration() *Config {
 }
 
 /*
+SetConfiguration sets the configuration globally
+*/
+func SetConfiguration(c *Config) {
+	config = *c
+}
+
+/*
 GetLogger provides a global logger for this service
 */
 func GetLogger() lager.Logger {
@@ -72,4 +79,11 @@ func GetLogger() lager.Logger {
 		logger = lager.NewLogger("ec2_broker")
 	}
 	return logger
+}
+
+/*
+SetLogger sets the global logger for this service
+*/
+func SetLogger(l lager.Logger) {
+	logger = l
 }
