@@ -4,13 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"code.cloudfoundry.org/lager"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/GSA/ec2-broker/config"
 	"github.com/GSA/ec2-broker/service"
@@ -21,9 +16,8 @@ import (
 EC2Broker stores the baseline information about the EC2 Broker
 */
 type EC2Broker struct {
-	BrokerName string           `json:"broker_name"`
-	AWSSession *session.Session `json:"aws_session"`
-	Client     *ec2.EC2
+	BrokerName string `json:"broker_name"`
+	Manager    *AWSManager
 }
 
 /*
@@ -39,16 +33,10 @@ type ProvisionParameters struct {
 /*
 New creates a new broker and connects to AWS based on the current environment.
 */
-func New(name, region string) (*EC2Broker, error) {
-	sess, err := session.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("creating AWS client: Failed to create AWS Session: %s", err.Error())
-	}
-
+func New(name string, m *AWSManager) (*EC2Broker, error) {
 	return &EC2Broker{
 		BrokerName: name,
-		AWSSession: sess,
-		Client:     ec2.New(sess, &aws.Config{Region: &region}),
+		Manager:    m,
 	}, nil
 }
 
@@ -83,7 +71,7 @@ func (b *EC2Broker) Provision(context context.Context, instanceID string, detail
 		logger.Info("failed-provision-parse-parameters", lager.Data{"error": err.Error()})
 		return brokerapi.ProvisionedServiceSpec{}, brokerapi.ErrRawParamsInvalid
 	}
-	_, err = ProvisionAWSInstance(b.Client, details.PlanID, parameters.AMIID, parameters.SecurityGroupID, parameters.SubnetID, parameters.AssignPublicIP, instanceID)
+	_, err = b.Manager.ProvisionAWSInstance(details.PlanID, parameters.AMIID, parameters.SecurityGroupID, parameters.SubnetID, parameters.AssignPublicIP, instanceID)
 	if err != nil {
 		logger.Info("failed-provision-creation", lager.Data{"error": err.Error()})
 		return brokerapi.ProvisionedServiceSpec{}, err
@@ -103,7 +91,7 @@ No parameters are required. The EC2 instance will be terminated. It's the respon
 func (b *EC2Broker) Deprovision(context context.Context, instanceID string, details brokerapi.DeprovisionDetails, asyncAllowed bool) (brokerapi.DeprovisionServiceSpec, error) {
 	logger := config.GetLogger()
 	logger.Info("deprovision", lager.Data{"instanceID": instanceID})
-	status, err := TerminateAWSInstance(b.Client, instanceID)
+	status, err := b.Manager.TerminateAWSInstance(instanceID)
 	if err != nil {
 		return brokerapi.DeprovisionServiceSpec{}, err
 	}
@@ -144,7 +132,7 @@ func (b *EC2Broker) Update(context context.Context, instanceID string, details b
 LastOperation will look up the current state of an existing provisioned instance from AWS and provide a status back to the user
 */
 func (b *EC2Broker) LastOperation(context context.Context, instanceID, operationData string) (brokerapi.LastOperation, error) {
-	status, err := GetAWSInstanceStatus(b.Client, instanceID)
+	status, err := b.Manager.GetAWSInstanceStatus(instanceID)
 	if err != nil {
 		return brokerapi.LastOperation{}, err
 	}

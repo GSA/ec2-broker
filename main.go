@@ -32,7 +32,13 @@ func main() {
 		return
 	}
 
-	b, err := broker.New("ec2-broker", conf.Region)
+	m, err := broker.NewAWSManager()
+	if err != nil {
+		logger.Fatal("loading-aws-session", err, nil)
+		return
+	}
+
+	b, err := broker.New("ec2-broker", m)
 	if err != nil {
 		logger.Fatal("loading-broker", err, nil)
 		return

@@ -8,9 +8,33 @@ import (
 
 	"github.com/GSA/ec2-broker/config"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pivotal-cf/brokerapi"
 )
+
+/*
+AWSManager abstracts a number of calls to the AWS services
+*/
+type AWSManager struct {
+	Client  *ec2.EC2
+	Session *session.Session
+}
+
+/*
+NewAWSManager uilds a new AWS Manager, including starting its session
+*/
+func NewAWSManager() (*AWSManager, error) {
+	sess, err := session.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("creating AWS client: Failed to create AWS Session: %s", err.Error())
+	}
+
+	return &AWSManager{
+		Session: sess,
+		Client:  ec2.New(sess),
+	}, nil
+}
 
 /*
 ProvisionAWSInstance will launch and instance and provide the instance ID back.
@@ -18,7 +42,7 @@ ProvisionAWSInstance will launch and instance and provide the instance ID back.
 This will validate the inputs against the configuration to ensure that this can be called. The end result will
 be an instance with a tag called brokerInstance = instanceID
 */
-func ProvisionAWSInstance(client *ec2.EC2, planID, amiID, securityGroupID, subnetID string, assignPublicIP bool, instanceID string) (string, error) {
+func (m *AWSManager) ProvisionAWSInstance(planID, amiID, securityGroupID, subnetID string, assignPublicIP bool, instanceID string) (string, error) {
 	conf := config.GetConfiguration()
 	logger := config.GetLogger()
 	plan, err := findPlan(conf, planID)
@@ -61,7 +85,7 @@ func ProvisionAWSInstance(client *ec2.EC2, planID, amiID, securityGroupID, subne
 			&nis,
 		},
 	}
-	reservation, err := client.RunInstances(instanceInput)
+	reservation, err := m.Client.RunInstances(instanceInput)
 
 	// Fail if we haven't constructed the instance
 	if err != nil {
@@ -78,7 +102,7 @@ func ProvisionAWSInstance(client *ec2.EC2, planID, amiID, securityGroupID, subne
 		"ami_id":      reservation.Instances[0].ImageId,
 	})
 
-	err = tagEC2Instance(client, *reservation.Instances[0].InstanceId, map[string]string{
+	err = m.tagEC2Instance(*reservation.Instances[0].InstanceId, map[string]string{
 		conf.TagPrefix + "brokerInstance": instanceID,
 	})
 	if err != nil {
@@ -90,7 +114,7 @@ func ProvisionAWSInstance(client *ec2.EC2, planID, amiID, securityGroupID, subne
 			"aws_instance_id":   reservation.Instances[0].InstanceId,
 		})
 		// Destroy the instance on failure
-		_, innerErr := terminateEC2Instance(client, *reservation.Instances[0].InstanceId)
+		_, innerErr := m.terminateEC2Instance(*reservation.Instances[0].InstanceId)
 		if innerErr != nil {
 			logger.Error("failed-terminating-instance", err, lager.Data{
 				"instance_id": instanceID,
@@ -107,19 +131,19 @@ func ProvisionAWSInstance(client *ec2.EC2, planID, amiID, securityGroupID, subne
 TerminateAWSInstance terminates an EC2 instance given its service instance ID (*not* its AWS Instance ID).
 Returns the current status
 */
-func TerminateAWSInstance(client *ec2.EC2, instanceID string) (string, error) {
-	instance, err := getEC2InstanceByServiceID(client, instanceID)
+func (m *AWSManager) TerminateAWSInstance(instanceID string) (string, error) {
+	instance, err := m.getEC2InstanceByServiceID(instanceID)
 	if err != nil {
 		return "", err
 	}
-	return terminateEC2Instance(client, *instance.InstanceId)
+	return m.terminateEC2Instance(*instance.InstanceId)
 }
 
 /*
 GetAWSInstanceStatus gets the status of an EC2 instance by its service instance ID
 */
-func GetAWSInstanceStatus(client *ec2.EC2, instanceID string) (string, error) {
-	instance, err := getEC2InstanceByServiceID(client, instanceID)
+func (m *AWSManager) GetAWSInstanceStatus(instanceID string) (string, error) {
+	instance, err := m.getEC2InstanceByServiceID(instanceID)
 	if err != nil {
 		return "", err
 	}
@@ -128,6 +152,7 @@ func GetAWSInstanceStatus(client *ec2.EC2, instanceID string) (string, error) {
 
 // Private functions
 
+// TODO: Should probably move this to config....
 func findPlan(conf *config.Config, planID string) (*config.PlanConfig, error) {
 	for i := 0; i < len(conf.Plans); i++ {
 		if conf.Plans[i].ID == planID {
@@ -137,6 +162,7 @@ func findPlan(conf *config.Config, planID string) (*config.PlanConfig, error) {
 	return nil, fmt.Errorf("Unable to find plan in configuration: %s", planID)
 }
 
+// TODO: And should move this to a common utility
 func stringIn(s string, arr []string) bool {
 	for i := 0; i < len(arr); i++ {
 		if s == arr[i] {
@@ -148,7 +174,7 @@ func stringIn(s string, arr []string) bool {
 
 // Tags a given EC2 instance with the passed in map - Instance ID refers to the AWS
 // Instance ID, *not* the service instance ID
-func tagEC2Instance(client *ec2.EC2, awsInstanceID string, tags map[string]string) error {
+func (m *AWSManager) tagEC2Instance(awsInstanceID string, tags map[string]string) error {
 	tagStructs := make([]*ec2.Tag, len(tags))
 	i := 0
 	for k, v := range tags {
@@ -164,18 +190,18 @@ func tagEC2Instance(client *ec2.EC2, awsInstanceID string, tags map[string]strin
 		},
 		Tags: tagStructs,
 	}
-	_, err := client.CreateTags(tagInput)
+	_, err := m.Client.CreateTags(tagInput)
 	return err
 }
 
 // Terminate an EC2 instance given its awsInstanceID
-func terminateEC2Instance(client *ec2.EC2, awsInstanceID string) (string, error) {
+func (m *AWSManager) terminateEC2Instance(awsInstanceID string) (string, error) {
 	input := &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{
 			aws.String(awsInstanceID),
 		},
 	}
-	output, err := client.TerminateInstances(input)
+	output, err := m.Client.TerminateInstances(input)
 	if err != nil {
 		return "", err
 	}
@@ -184,7 +210,7 @@ func terminateEC2Instance(client *ec2.EC2, awsInstanceID string) (string, error)
 
 // Extracts an EC2 instance based on a tag named tagPrefix + "brokerInstance" being = serviceID
 // This will return brokerapi.ErrInstanceDoesNotExist if no such instance is found
-func getEC2InstanceByServiceID(client *ec2.EC2, serviceID string) (*ec2.Instance, error) {
+func (m *AWSManager) getEC2InstanceByServiceID(serviceID string) (*ec2.Instance, error) {
 	conf := config.GetConfiguration()
 	logger := config.GetLogger()
 	input := &ec2.DescribeInstancesInput{
@@ -195,7 +221,7 @@ func getEC2InstanceByServiceID(client *ec2.EC2, serviceID string) (*ec2.Instance
 			},
 		},
 	}
-	output, err := client.DescribeInstances(input)
+	output, err := m.Client.DescribeInstances(input)
 	if err != nil {
 		return nil, err
 	}
