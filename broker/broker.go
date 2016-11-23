@@ -17,7 +17,7 @@ EC2Broker stores the baseline information about the EC2 Broker
 */
 type EC2Broker struct {
 	BrokerName string `json:"broker_name"`
-	Manager    *AWSManager
+	Manager    InstanceManager
 }
 
 /*
@@ -33,7 +33,7 @@ type ProvisionParameters struct {
 /*
 New creates a new broker and connects to AWS based on the current environment.
 */
-func New(name string, m *AWSManager) (*EC2Broker, error) {
+func New(name string, m InstanceManager) (*EC2Broker, error) {
 	return &EC2Broker{
 		BrokerName: name,
 		Manager:    m,

@@ -14,6 +14,15 @@ import (
 )
 
 /*
+InstanceManager represents the core functions of a manager of AWS instances of interest
+*/
+type InstanceManager interface {
+	ProvisionAWSInstance(planID, amiID, securityGroupID, subnetID string, assignPublicIP bool, instanceID string) (string, error)
+	TerminateAWSInstance(instanceID string) (string, error)
+	GetAWSInstanceStatus(instanceID string) (string, error)
+}
+
+/*
 AWSManager abstracts a number of calls to the AWS services
 */
 type AWSManager struct {
