@@ -1,0 +1,12 @@
+name: 'EC2 Broker for Cloud Foundry'
+description: 'The broker provides limited access to launch EC2 instances.'
+license: null
+openSourceProject: 1
+governmentWideReuseProject: 1
+tags:
+    - cloud
+    - cloud-foundry
+    - aws
+    - ec2
+contact:
+    email: cto@gsa.gov
