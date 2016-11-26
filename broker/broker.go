@@ -10,6 +10,8 @@ import (
 	"github.com/GSA/ec2-broker/config"
 	"github.com/GSA/ec2-broker/service"
 	"github.com/pivotal-cf/brokerapi"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 /*
@@ -148,12 +150,12 @@ func (b *EC2Broker) LastOperation(context context.Context, instanceID, operation
 	var state brokerapi.LastOperationState
 
 	switch status {
-	case "pending":
+	case ec2.InstanceStateNamePending, ec2.InstanceStateNameStopping:
 		state = brokerapi.InProgress
-	case "running":
+	case ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopped, ec2.InstanceStateNameTerminated:
 		state = brokerapi.Succeeded
 	default:
-		state = brokerapi.Failed // This includes stopped/terminated/stopping states
+		state = brokerapi.Failed // This happens only if we have an unrecognized state
 	}
 	return brokerapi.LastOperation{State: state, Description: status}, nil
 }
