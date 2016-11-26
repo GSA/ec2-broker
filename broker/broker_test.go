@@ -114,20 +114,45 @@ var _ = Describe("Broker", func() {
 			Expect(err).To(HaveOccurred())
 			m.AssertExpectations(GinkgoT())
 		})
+
 	})
 
-	It("fails binding calls", func() {
-		_, err := b.Bind(context.Background(), "instance-1", "binding-1", brokerapi.BindDetails{})
-		Expect(err).To(HaveOccurred())
+	Describe("deprovision", func() {
+		It("succeeds on termination for known instances", func() {
+			m.On("TerminateAWSInstance", "instance-1").Return("stopping", nil)
+			status, err := b.Deprovision(context.Background(), "instance-1", brokerapi.DeprovisionDetails{}, true)
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(status.OperationData).To(Equal("stopping"))
+			Expect(status.IsAsync).To(Equal(true))
+			m.AssertExpectations(GinkgoT())
+		})
 
-		err = b.Unbind(context.Background(), "instance-1", "binding-1", brokerapi.UnbindDetails{})
-		Expect(err).To(HaveOccurred())
+		It("fails termination on AWS error", func() {
+			m.On("TerminateAWSInstance", "unknown").Return("", errors.New("AWS Error"))
+			status, err := b.Deprovision(context.Background(), "unknown", brokerapi.DeprovisionDetails{}, true)
+			Expect(err).To(HaveOccurred())
+			Expect(status.OperationData).To(Equal(""))
+			m.AssertExpectations(GinkgoT())
+		})
 	})
 
-	It("fails update calls", func() {
-		_, err := b.Update(context.Background(), "instance-1", brokerapi.UpdateDetails{}, true)
-		Expect(err).To(HaveOccurred())
-		Expect(err).To(Equal(brokerapi.ErrPlanChangeNotSupported))
+	Describe("binding", func() {
+
+		It("fails binding calls", func() {
+			_, err := b.Bind(context.Background(), "instance-1", "binding-1", brokerapi.BindDetails{})
+			Expect(err).To(HaveOccurred())
+
+			err = b.Unbind(context.Background(), "instance-1", "binding-1", brokerapi.UnbindDetails{})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("update", func() {
+		It("fails update calls", func() {
+			_, err := b.Update(context.Background(), "instance-1", brokerapi.UpdateDetails{}, true)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(brokerapi.ErrPlanChangeNotSupported))
+		})
 	})
 
 })
