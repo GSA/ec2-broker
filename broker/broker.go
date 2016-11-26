@@ -71,11 +71,20 @@ func (b *EC2Broker) Provision(context context.Context, instanceID string, detail
 		logger.Info("failed-provision-parse-parameters", lager.Data{"error": err.Error()})
 		return brokerapi.ProvisionedServiceSpec{}, brokerapi.ErrRawParamsInvalid
 	}
-	_, err = b.Manager.ProvisionAWSInstance(details.PlanID, parameters.AMIID, parameters.SecurityGroupID, parameters.SubnetID, parameters.AssignPublicIP, instanceID)
+	logger.Info("attempting-provision", lager.Data{
+		"plan_id":             details.PlanID,
+		"service_instance_id": instanceID,
+		"ami_id":              parameters.AMIID,
+		"security_group_id":   parameters.SecurityGroupID,
+		"subnet_id":           parameters.SubnetID,
+		"assign_public_ip":    parameters.AssignPublicIP,
+	})
+	awsID, err := b.Manager.ProvisionAWSInstance(details.PlanID, parameters.AMIID, parameters.SecurityGroupID, parameters.SubnetID, parameters.AssignPublicIP, instanceID)
 	if err != nil {
 		logger.Info("failed-provision-creation", lager.Data{"error": err.Error()})
 		return brokerapi.ProvisionedServiceSpec{}, err
 	}
+	logger.Info("created-instance", lager.Data{"aws_instance_id": awsID, "instance_id": instanceID})
 
 	return brokerapi.ProvisionedServiceSpec{
 		IsAsync:       true,
@@ -95,7 +104,7 @@ func (b *EC2Broker) Deprovision(context context.Context, instanceID string, deta
 	if err != nil {
 		return brokerapi.DeprovisionServiceSpec{}, err
 	}
-	return brokerapi.DeprovisionServiceSpec{OperationData: status}, nil
+	return brokerapi.DeprovisionServiceSpec{OperationData: status, IsAsync: true}, nil
 }
 
 /*
