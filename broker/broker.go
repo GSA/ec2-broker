@@ -104,7 +104,7 @@ func (b *EC2Broker) Deprovision(context context.Context, instanceID string, deta
 	if err != nil {
 		return brokerapi.DeprovisionServiceSpec{}, err
 	}
-	return brokerapi.DeprovisionServiceSpec{OperationData: status}, nil
+	return brokerapi.DeprovisionServiceSpec{OperationData: status, IsAsync: true}, nil
 }
 
 /*
