@@ -1,0 +1,33 @@
+{
+  "dashboard_url": "https://dashboard.fr.cloud.gov",
+  "region": "us-east-1",
+  "service_id": "server-test-service-id-1",
+  "service_name": "ec2-service",
+  "service_description": "Allows users to launch a restricted set of AMIs into a restricted set of security groups and subnets",
+  "broker_username": "buser",
+  "broker_password": "bpassword",
+  "keypair_name": "cg-navin",
+  "tag_prefix": "cg:ec2broker:",
+  "plans": [
+    {
+      "id": "server-test-plan-id-1",
+      "name": "micro-ec2-plan",
+      "description": "Launches a t2.micro instance with the given parameters",
+      "instance_type": "t2.micro",
+      "allowed_amis": ["-CGN_AMI-"],
+      "allowed_security_groups": ["-CGN_SG-"],
+      "allowed_subnets": ["-CGN_SN-"],
+      "allow_public_ip": true
+    },
+    {
+      "id": "server-test-plan-id-2",
+      "name": "medium-ec2-plan",
+      "description": "Launches a t2.medium instance with the given parameters",
+      "instance_type": "t2.medium",
+      "allowed_amis": ["-CGN_AMI-"],
+      "allowed_security_groups": ["-CGN_SG-"],
+      "allowed_subnets": ["-CGN_SN-"],
+      "allow_public_ip": true
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 {
   "organization_guid": "oguid",
-  "plan_id": "micro-plan-id",
-  "service_id": "service-guid",
+  "plan_id": "server-test-plan-id-1",
+  "service_id": "server-test-service-id-1",
   "space_guid": "space-guid",
   "parameters": {
-    "ami_id": "ami-ecb68a84",
-    "security_group_id": "sg-a1f577dc",
-    "subnet_id": "subnet-d718ae8c",
+    "ami_id": "-CGN_AMI-",
+    "security_group_id": "-CGN_SG-",
+    "subnet_id": "-CGN_SN-",
     "assign_public_ip": true
   },
   "accepts_incomplete": true

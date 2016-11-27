@@ -2,3 +2,4 @@ ec2-broker
 config.json
 vendor/
 test-data/
+tmp/
