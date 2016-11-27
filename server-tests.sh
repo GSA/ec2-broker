@@ -134,4 +134,53 @@ fi
 
 aws_instance=$(jq '.Reservations[0].Instances[0].InstanceId' tmp/aws-describe-result-$$.json | sed 's/"//g')
 
+# Deprovision the started instance
+
+curl --silent --user buser:bpassword -XDELETE --data "@tmp/provision-test-$$.json" \
+ http://localhost:${server_port}/v2/service_instances/test_instance_$$ > tmp/service-delete-result-$$.json
+
+if [ $? -ne 0 ]; then
+  echo "deprovision: curl failed on deprovision"
+  exit 1
+fi
+
+sleep 5
+
+aws ec2 describe-instances \
+ --filters "Name=tag:cg:ec2broker:brokerInstance,Values=test_instance_$$" > tmp/aws-describe-result-$$.json
+
+reservations_count=$(jq '.Reservations | length' tmp/aws-describe-result-$$.json)
+if [ "${reservations_count}" -ne 1 ]
+  then
+    echo "Found ${reservations_count} reservation(s) after DELETE, expected 1"
+    exit 1
+fi
+
+instances_count=$(jq '.Reservations[0].Instances | length ' tmp/aws-describe-result-$$.json)
+if [ "${instances_count}" -ne 1 ]
+  then
+    echo "Found ${instances_count} instance(s) after DELETE, expected 1"
+    exit 1
+fi
+
+instance_state=$(jq '.Reservations[0].Instances[0].State.Name' tmp/aws-describe-result-$$.json)
+if [ "${instance_state}" != '"shutting-down"' \
+    -a "${instance_state}" != '"terminated"' \
+    -a "${instance_state}" != '"stopping"' \
+    -a "${instance_state}" != '"stopped"' ]; then
+  echo "Got state ${instance_state}: should have been 'shutting-down', 'stopping', 'stopped', or 'terminated'"
+  exit 1
+fi
+
+matched_instance=$(jq '.Reservations[0].Instances[0].InstanceId' tmp/aws-describe-result-$$.json | sed 's/"//g')
+
+if [ "${aws_instance}" != "${matched_instance}" ]; then
+  echo "Was not able to match expected instance ${aws_instance} != ${matched_instance}"
+  exit 1
+fi
+
+# null this out now that we are deleting the instance, so cleanup doesn't try to
+# terminate it
+aws_instance=
+
 echo "Success"
