@@ -1,0 +1,6 @@
+{
+		"ami_id": "ami-ecb68a84",
+    "security_group_id": "sg-a1f577dc",
+    "subnet_id": "subnet-d718ae8c",
+    "assign_public_ip": true
+}
