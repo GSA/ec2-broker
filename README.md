@@ -49,9 +49,10 @@ The unit tests require [Ginkgo](https://onsi.github.io/ginkgo/),
 The usual `go test` will execute the unit tests.
 
 Right now, there is one server-oriented integration test built. The test
-exercises the ability for the launched server to connect and provision servers
-via AWS. The tests are run from [server-tests.sh](server-tests.sh). It requires
-a few environment variables to run - the standard AWS environment variables
+requires `jq` and the AWS CLI to be installed to run. The test exercises the
+ability for the launched server to connect and provision servers via AWS. The
+tests are run from [server-tests.sh](server-tests.sh). It requires a few
+environment variables to run - the standard AWS environment variables
 that identify a profile or an access key id and secret key value, the
 `AWS_REGION` variable, and three variables that identify an accessible
 AMI ID, Subnet ID, and Security Group ID. Those values will be interpolated
