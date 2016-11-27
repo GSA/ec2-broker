@@ -36,13 +36,31 @@ A good old...
 ```
 $ godep restore
 $ go build
-
 ```
 
 Should get you to a working `ec2-broker` executable. You'll need to make your own `config.json` file,
 using the [config-sample.json](config-sample.json) file as a model.
 
-Working on the tests... promise.
+## Testing
+
+The unit tests require [Ginkgo](https://onsi.github.io/ginkgo/),
+[Gomega](https://github.com/onsi/gomega), and [Testify](https://github.com/stretchr/testify).
+
+The usual `go test` will execute the unit tests.
+
+Right now, there is one server-oriented integration test built. The test
+requires `jq` and the AWS CLI to be installed to run. The test exercises the
+ability for the launched server to connect and provision servers via AWS. The
+tests are run from [server-tests.sh](server-tests.sh). It requires a few
+environment variables to run - the standard AWS environment variables
+that identify a profile or an access key id and secret key value, the
+`AWS_REGION` variable, and three variables that identify an accessible
+AMI ID, Subnet ID, and Security Group ID. Those values will be interpolated
+into the [test configuration file](testdata/config-server-tests.json).
+
+```
+$ <AWS parameters> CGN_SN=<subnet id> CGN_SG=<security group id> CGN_AMI=<AMI ID> ./server-tests.sh
+```
 
 ## Use
 
