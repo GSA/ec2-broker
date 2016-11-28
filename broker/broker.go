@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"code.cloudfoundry.org/lager"
 
@@ -91,7 +92,7 @@ func (b *EC2Broker) Provision(context context.Context, instanceID string, detail
 	return brokerapi.ProvisionedServiceSpec{
 		IsAsync:       true,
 		DashboardURL:  conf.DashboardURL,
-		OperationData: "provisioning"}, nil
+		OperationData: fmt.Sprintf("p_%s", instanceID)}, nil
 }
 
 /*
@@ -140,22 +141,41 @@ func (b *EC2Broker) Update(context context.Context, instanceID string, details b
 }
 
 /*
-LastOperation will look up the current state of an existing provisioned instance from AWS and provide a status back to the user
+LastOperation will look up the current state of an existing instance from AWS and provide a status back to the user
 */
 func (b *EC2Broker) LastOperation(context context.Context, instanceID, operationData string) (brokerapi.LastOperation, error) {
+	logger := config.GetLogger()
+	forProvision := true
+	if operationData == "p_"+instanceID {
+	} else if operationData == "d_"+instanceID {
+		forProvision = false
+	} else {
+		return brokerapi.LastOperation{}, brokerapi.ErrRawParamsInvalid
+	}
 	status, err := b.Manager.GetAWSInstanceStatus(instanceID)
 	if err != nil {
-		return brokerapi.LastOperation{}, err
+		logger.Error("getting-status", err)
+		return brokerapi.LastOperation{}, fmt.Errorf("Unable to look up status for %s", instanceID)
 	}
 	var state brokerapi.LastOperationState
-
-	switch status {
-	case ec2.InstanceStateNamePending, ec2.InstanceStateNameStopping:
-		state = brokerapi.InProgress
-	case ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopped, ec2.InstanceStateNameTerminated:
-		state = brokerapi.Succeeded
-	default:
-		state = brokerapi.Failed // This happens only if we have an unrecognized state
+	if forProvision {
+		// for provisioning, pending => in progress, running => succeeded, else failed
+		if status == ec2.InstanceStateNamePending {
+			state = brokerapi.InProgress
+		} else if status == ec2.InstanceStateNameRunning {
+			state = brokerapi.Succeeded
+		} else {
+			state = brokerapi.Failed
+		}
+	} else {
+		// for deprovisioning, stopping => in progress, stopped, terminated => succeeded, else failed
+		if status == ec2.InstanceStateNameShuttingDown || status == ec2.InstanceStateNameStopping {
+			state = brokerapi.InProgress
+		} else if status == ec2.InstanceStateNameStopped || status == ec2.InstanceStateNameTerminated {
+			state = brokerapi.Succeeded
+		} else {
+			state = brokerapi.Failed
+		}
 	}
 	return brokerapi.LastOperation{State: state, Description: status}, nil
 }

@@ -101,7 +101,7 @@ var _ = Describe("Broker", func() {
 					RawParameters: []byte("{ \"ami_id\": \"allowed-ami-1\", \"subnet_id\": \"allowed-sn-1\", \"security_group_id\": \"allowed-sg-1\", \"assign_public_ip\": true }"),
 				}, true)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(spec.OperationData).To(Equal("provisioning"))
+			Expect(spec.OperationData).To(Equal("p_instance-1"))
 			m.AssertExpectations(GinkgoT())
 		})
 
@@ -157,52 +157,72 @@ var _ = Describe("Broker", func() {
 	})
 
 	Describe("last operation", func() {
-		It("returns 'in progress' if the last operation is 'pending'", func() {
+		It("returns 'in progress' if the last operation is 'pending' on a provisioning request", func() {
 			m.On("GetAWSInstanceStatus", "instance-1").Return(ec2.InstanceStateNamePending, nil)
-			op, err := b.LastOperation(context.Background(), "instance-1", "")
+			op, err := b.LastOperation(context.Background(), "instance-1", "p_instance-1")
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(op.State).To(Equal(brokerapi.InProgress))
 		})
 
-		It("returns 'succeeded' if the AWS state is 'running'", func() {
+		It("returns 'succeeded' if the AWS state is 'running' on a provisioning request", func() {
 			m.On("GetAWSInstanceStatus", "instance-2").Return(ec2.InstanceStateNameRunning, nil)
-			op, err := b.LastOperation(context.Background(), "instance-2", "")
+			op, err := b.LastOperation(context.Background(), "instance-2", "p_instance-2")
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(op.State).To(Equal(brokerapi.Succeeded))
 		})
 
+		It("returns 'failed' on provision if the AWS state is not 'running' or 'pending'", func() {
+			m.On("GetAWSInstanceStatus", "instance-3").Return(ec2.InstanceStateNameStopped, nil)
+			op, err := b.LastOperation(context.Background(), "instance-3", "p_instance-3")
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(op.State).To(Equal(brokerapi.Failed))
+		})
+
 		It("returns 'in progress' if the AWS state is 'stopping'", func() {
-			m.On("GetAWSInstanceStatus", "instance-3").Return(ec2.InstanceStateNameStopping, nil)
-			op, err := b.LastOperation(context.Background(), "instance-3", "")
+			m.On("GetAWSInstanceStatus", "instance-4").Return(ec2.InstanceStateNameStopping, nil)
+			op, err := b.LastOperation(context.Background(), "instance-4", "d_instance-4")
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(op.State).To(Equal(brokerapi.InProgress))
 		})
 
 		It("returns 'succeeded' if the AWS state is 'stopped'", func() {
-			m.On("GetAWSInstanceStatus", "instance-4").Return(ec2.InstanceStateNameStopped, nil)
-			op, err := b.LastOperation(context.Background(), "instance-4", "")
+			m.On("GetAWSInstanceStatus", "instance-5").Return(ec2.InstanceStateNameStopped, nil)
+			op, err := b.LastOperation(context.Background(), "instance-5", "d_instance-5")
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(op.State).To(Equal(brokerapi.Succeeded))
 		})
 
 		It("returns 'succeeded' if the AWS state is 'terminated'", func() {
-			m.On("GetAWSInstanceStatus", "instance-5").Return(ec2.InstanceStateNameTerminated, nil)
-			op, err := b.LastOperation(context.Background(), "instance-5", "")
+			m.On("GetAWSInstanceStatus", "instance-6").Return(ec2.InstanceStateNameTerminated, nil)
+			op, err := b.LastOperation(context.Background(), "instance-6", "d_instance-6")
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(op.State).To(Equal(brokerapi.Succeeded))
 		})
 
+		It("returns 'failed' on deprovision if the AWS state is not 'stopping', 'stopped', or 'terminated'", func() {
+			m.On("GetAWSInstanceStatus", "instance-7").Return(ec2.InstanceStateNameRunning, nil)
+			op, err := b.LastOperation(context.Background(), "instance-7", "d_instance-7")
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(op.State).To(Equal(brokerapi.Failed))
+		})
+
 		It("returns 'failed' if the AWS state is unknown", func() {
-			m.On("GetAWSInstanceStatus", "instance-6").Return("unknown", nil)
-			op, err := b.LastOperation(context.Background(), "instance-6", "")
+			m.On("GetAWSInstanceStatus", "instance-8").Return("unknown", nil)
+			op, err := b.LastOperation(context.Background(), "instance-8", "p_instance-8")
 			Expect(err).To(Not(HaveOccurred()))
 			Expect(op.State).To(Equal(brokerapi.Failed))
 		})
 
 		It("returns an error if an AWS error occurs", func() {
 			m.On("GetAWSInstanceStatus", "instance-error").Return("", errors.New("AWS Error"))
+			_, err := b.LastOperation(context.Background(), "instance-error", "p_instance-error")
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns an error if operation data is not accurate", func() {
 			_, err := b.LastOperation(context.Background(), "instance-error", "")
 			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(brokerapi.ErrRawParamsInvalid))
 		})
 
 	})
