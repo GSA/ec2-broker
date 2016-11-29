@@ -103,11 +103,11 @@ No parameters are required. The EC2 instance will be terminated. It's the respon
 func (b *EC2Broker) Deprovision(context context.Context, instanceID string, details brokerapi.DeprovisionDetails, asyncAllowed bool) (brokerapi.DeprovisionServiceSpec, error) {
 	logger := config.GetLogger()
 	logger.Info("deprovision", lager.Data{"instanceID": instanceID})
-	status, err := b.Manager.TerminateAWSInstance(instanceID)
+	_, err := b.Manager.TerminateAWSInstance(instanceID)
 	if err != nil {
 		return brokerapi.DeprovisionServiceSpec{}, err
 	}
-	return brokerapi.DeprovisionServiceSpec{OperationData: status, IsAsync: true}, nil
+	return brokerapi.DeprovisionServiceSpec{OperationData: fmt.Sprintf("d_%s", instanceID), IsAsync: true}, nil
 }
 
 /*

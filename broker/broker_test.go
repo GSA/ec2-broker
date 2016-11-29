@@ -123,7 +123,7 @@ var _ = Describe("Broker", func() {
 			m.On("TerminateAWSInstance", "instance-1").Return("stopping", nil)
 			status, err := b.Deprovision(context.Background(), "instance-1", brokerapi.DeprovisionDetails{}, true)
 			Expect(err).To(Not(HaveOccurred()))
-			Expect(status.OperationData).To(Equal("stopping"))
+			Expect(status.OperationData).To(Equal("d_instance-1"))
 			Expect(status.IsAsync).To(Equal(true))
 			m.AssertExpectations(GinkgoT())
 		})
