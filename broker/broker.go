@@ -145,37 +145,42 @@ LastOperation will look up the current state of an existing instance from AWS an
 */
 func (b *EC2Broker) LastOperation(context context.Context, instanceID, operationData string) (brokerapi.LastOperation, error) {
 	logger := config.GetLogger()
-	forProvision := true
+	logger.Info("last-operation", lager.Data{"operationData": operationData, "instanceID": instanceID})
+	var forProvision bool
 	if operationData == "p_"+instanceID {
+		forProvision = true
 	} else if operationData == "d_"+instanceID {
 		forProvision = false
 	} else {
 		return brokerapi.LastOperation{}, brokerapi.ErrRawParamsInvalid
 	}
-	status, err := b.Manager.GetAWSInstanceStatus(instanceID)
+	awsStatus, err := b.Manager.GetAWSInstanceStatus(instanceID)
 	if err != nil {
 		logger.Error("getting-status", err)
 		return brokerapi.LastOperation{}, fmt.Errorf("Unable to look up status for %s", instanceID)
 	}
+	logger.Info("last-operation-status", lager.Data{"operationData": operationData, "instanceID": instanceID, "awsStatus": awsStatus})
 	var state brokerapi.LastOperationState
 	if forProvision {
 		// for provisioning, pending => in progress, running => succeeded, else failed
-		if status == ec2.InstanceStateNamePending {
+		if awsStatus == ec2.InstanceStateNamePending {
 			state = brokerapi.InProgress
-		} else if status == ec2.InstanceStateNameRunning {
+		} else if awsStatus == ec2.InstanceStateNameRunning {
 			state = brokerapi.Succeeded
 		} else {
+			logger.Error("last-operation-failed", errors.New("bad provision status"), lager.Data{"operationData": operationData, "instanceID": instanceID, "awsStatus": awsStatus})
 			state = brokerapi.Failed
 		}
 	} else {
 		// for deprovisioning, stopping => in progress, stopped, terminated => succeeded, else failed
-		if status == ec2.InstanceStateNameShuttingDown || status == ec2.InstanceStateNameStopping {
+		if awsStatus == ec2.InstanceStateNameShuttingDown || awsStatus == ec2.InstanceStateNameStopping {
 			state = brokerapi.InProgress
-		} else if status == ec2.InstanceStateNameStopped || status == ec2.InstanceStateNameTerminated {
+		} else if awsStatus == ec2.InstanceStateNameStopped || awsStatus == ec2.InstanceStateNameTerminated {
 			state = brokerapi.Succeeded
 		} else {
+			logger.Error("last-operation-failed", errors.New("bad deprovision status"), lager.Data{"operationData": operationData, "instanceID": instanceID, "awsStatus": awsStatus})
 			state = brokerapi.Failed
 		}
 	}
-	return brokerapi.LastOperation{State: state, Description: status}, nil
+	return brokerapi.LastOperation{State: state, Description: awsStatus}, nil
 }

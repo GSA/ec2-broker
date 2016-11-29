@@ -178,6 +178,20 @@ var _ = Describe("Broker", func() {
 			Expect(op.State).To(Equal(brokerapi.Failed))
 		})
 
+		It("returns 'failed' on provision if the AWS state is not 'running' or 'pending'", func() {
+			m.On("GetAWSInstanceStatus", "instance-3").Return(ec2.InstanceStateNameShuttingDown, nil)
+			op, err := b.LastOperation(context.Background(), "instance-3", "p_instance-3")
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(op.State).To(Equal(brokerapi.Failed))
+		})
+
+		It("returns 'in progress' if the AWS state is 'shutting down'", func() {
+			m.On("GetAWSInstanceStatus", "instance-4").Return(ec2.InstanceStateNameShuttingDown, nil)
+			op, err := b.LastOperation(context.Background(), "instance-4", "d_instance-4")
+			Expect(err).To(Not(HaveOccurred()))
+			Expect(op.State).To(Equal(brokerapi.InProgress))
+		})
+
 		It("returns 'in progress' if the AWS state is 'stopping'", func() {
 			m.On("GetAWSInstanceStatus", "instance-4").Return(ec2.InstanceStateNameStopping, nil)
 			op, err := b.LastOperation(context.Background(), "instance-4", "d_instance-4")
