@@ -67,7 +67,7 @@ teardown() {
     rm config.json
     mv tmp/config-$$.json config.json
   fi
-  # rm tmp/*-$$.json
+  rm tmp/*-$$.json
   if [ ${started_server} -ne 0 ]; then
     kill ${started_server}
   fi
